@@ -8,6 +8,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import android.widget.Toast
 
 class ActiveInboxWidgetProvider : AppWidgetProvider() {
 
@@ -18,8 +19,7 @@ class ActiveInboxWidgetProvider : AppWidgetProvider() {
     ) {
         Integrity.init(context)
         val prefs = context.getSharedPreferences(PrefKeys.PREFS_NAME, Context.MODE_PRIVATE)
-        val activeSlot = prefs.getInt("active_inbox_slot", 1)
-        val email = prefs.getString(PrefKeys.email(activeSlot), "No address")
+        val email = Integrity.email(1) ?: "No address"
         val messagesJson = prefs.getString("cached_messages", null)
         val unreadCount = if (messagesJson != null) {
             try {
@@ -44,11 +44,20 @@ class ActiveInboxWidgetProvider : AppWidgetProvider() {
                 action = ACTION_COPY_ADDRESS
                 putExtra(EXTRA_EMAIL, email)
             }
-            val pendingIntent = PendingIntent.getBroadcast(
+            val copyPending = PendingIntent.getBroadcast(
                 context, 0, copyIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widgetCopyButton, pendingIntent)
+            views.setOnClickPendingIntent(R.id.widgetCopyButton, copyPending)
+
+            val openIntent = Intent(context, SplashActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val openPending = PendingIntent.getActivity(
+                context, 1, openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widgetRoot, openPending)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -58,8 +67,10 @@ class ActiveInboxWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         if (ACTION_COPY_ADDRESS == intent.action) {
             val email = intent.getStringExtra(EXTRA_EMAIL) ?: return
+            if (email == "No address") return
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("email", email))
+            Toast.makeText(context, context.getString(R.string.copy_address_confirmation), Toast.LENGTH_SHORT).show()
         }
     }
 

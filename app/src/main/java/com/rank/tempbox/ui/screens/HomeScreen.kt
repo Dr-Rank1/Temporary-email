@@ -13,10 +13,12 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,6 +54,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
     var masked by remember { mutableStateOf(false) }
+    var confirmNewAddress by remember { mutableStateOf(false) }
     val hasEmail = emailAddress.isNotBlank()
     val scrambled = useScrambleText(emailAddress, enabled = hasEmail)
 
@@ -112,7 +115,7 @@ fun HomeScreen(
                     LiveDot(colors.accent)
                     Text("Active inbox", fontSize = 12.sp, color = colors.sub, fontWeight = FontWeight.Medium)
                 }
-                Text("Session-scoped", fontSize = 12.sp, color = colors.sub)
+                Text("Stored on this device", fontSize = 12.sp, color = colors.sub)
             }
 
             Spacer(Modifier.height(24.dp))
@@ -225,7 +228,7 @@ fun HomeScreen(
                         enabled = !isLoading,
                         accent = colors.accent,
                         muted = colors.sub,
-                        onClick = onRefreshEmail,
+                        onClick = { if (hasEmail) confirmNewAddress = true },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -299,13 +302,32 @@ fun HomeScreen(
             Spacer(Modifier.weight(1f))
 
             Text(
-                "No data stored. Inbox vanishes when you leave.",
+                "Addresses last 7 days on mail.tm. Login details stay on this device.",
                 fontSize = 12.sp,
                 color = colors.sub,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 24.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
+
+        if (confirmNewAddress) {
+            AlertDialog(
+                onDismissRequest = { confirmNewAddress = false },
+                title = { Text("Generate a new address?") },
+                text = {
+                    Text("The current inbox will be replaced. Messages on this address will no longer be available in the app.")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmNewAddress = false
+                        onRefreshEmail()
+                    }) { Text("Generate") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmNewAddress = false }) { Text("Cancel") }
+                },
             )
         }
 

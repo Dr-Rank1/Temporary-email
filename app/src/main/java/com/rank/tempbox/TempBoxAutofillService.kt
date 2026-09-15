@@ -1,7 +1,6 @@
 package com.rank.tempbox
 
 import android.app.assist.AssistStructure
-import android.content.Context
 import android.os.Build
 import android.os.CancellationSignal
 import android.service.autofill.AutofillService
@@ -13,6 +12,7 @@ import android.service.autofill.SaveCallback
 import android.service.autofill.SaveRequest
 import android.view.autofill.AutofillId
 import android.view.autofill.AutofillValue
+import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -37,7 +37,13 @@ class TempBoxAutofillService : AutofillService() {
             return
         }
 
-        val datasetBuilder = Dataset.Builder()
+        val presentation = RemoteViews(packageName, R.layout.autofill_inline_suggestion).apply {
+            setTextViewText(
+                R.id.tv_autofill_suggestion_text,
+                getString(R.string.autofill_presentation_text, email),
+            )
+        }
+        val datasetBuilder = Dataset.Builder(presentation)
         for (id in emailAutofillIds) {
             datasetBuilder.setValue(id, AutofillValue.forText(email))
         }
@@ -54,9 +60,8 @@ class TempBoxAutofillService : AutofillService() {
     }
 
     private fun getActiveEmail(): String? {
-        val prefs = getSharedPreferences(PrefKeys.PREFS_NAME, Context.MODE_PRIVATE)
-        val slot = prefs.getInt("active_inbox_slot", 1)
-        return prefs.getString(PrefKeys.email(slot), null)
+        Integrity.init(this)
+        return Integrity.email(1)
     }
 
     private fun traverseStructure(structure: AssistStructure, results: MutableList<AutofillId>) {
@@ -82,8 +87,7 @@ class TempBoxAutofillService : AutofillService() {
         val hints = node.autofillHints
         if (hints != null) {
             for (hint in hints) {
-                val lower = hint.lowercase()
-                if (lower.contains("email") || lower.contains("username")) return true
+                if (hint.lowercase().contains("email")) return true
             }
         }
 
@@ -100,6 +104,6 @@ class TempBoxAutofillService : AutofillService() {
         }
 
         val idEntry = node.idEntry?.lowercase() ?: ""
-        return idEntry.contains("email") || idEntry.contains("username")
+        return idEntry.contains("email")
     }
 }

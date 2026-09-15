@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.view.WindowCompat
 import com.rank.tempbox.MessageDetail
 import com.rank.tempbox.OtpExtractor
 import com.rank.tempbox.RetrofitClient
@@ -222,7 +223,7 @@ fun MessageDetailScreen(
                             // Verification link detection
                             val verifyRegex = Regex("""(?i)\bhref="([^"]*(?:verify|activate|confirm)[^"]*)""")
                             val verifyMatch = verifyRegex.find(htmlContent)
-                            val verifyUrl = verifyMatch?.groupValues?.get(1)
+                            val verifyUrl = verifyMatch?.groupValues?.get(1)?.let { safeHttpsUri(it) }
 
                             if (verifyUrl != null) {
                                 Box(
@@ -230,7 +231,7 @@ fun MessageDetailScreen(
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(colors.accent.copy(alpha = 0.08f))
                                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(verifyUrl)))
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, verifyUrl))
                                         }
                                         .padding(12.dp),
                                 ) {
@@ -245,6 +246,7 @@ fun MessageDetailScreen(
                                 }
                             }
 
+                            androidx.compose.runtime.key(messageId) {
                             AndroidView(
                                 factory = { ctx ->
                                     WebView(ctx).apply {
@@ -257,19 +259,32 @@ fun MessageDetailScreen(
                                         settings.useWideViewPort = true
                                         settings.allowFileAccess = false
                                         settings.allowContentAccess = false
+                                        settings.domStorageEnabled = false
+                                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                                         setBackgroundColor(android.graphics.Color.TRANSPARENT)
                                         isVerticalScrollBarEnabled = false
-                                        webViewClient = WebViewClient()
+                                        webViewClient = object : WebViewClient() {
+                                            override fun shouldOverrideUrlLoading(
+                                                view: WebView,
+                                                request: WebResourceRequest,
+                                            ): Boolean {
+                                                openHttpsExternally(ctx, request.url)
+                                                return true
+                                            }
+
+                                            @Deprecated("Deprecated in Java")
+                                            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                                                openHttpsExternally(ctx, Uri.parse(url))
+                                                return true
+                                            }
+                                        }
                                         val styled = buildStyledHtml(htmlContent, isDark)
                                         loadDataWithBaseURL(null, styled, "text/html", "UTF-8", null)
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                update = { webView ->
-                                    val styled = buildStyledHtml(htmlContent, isDark)
-                                    webView.loadDataWithBaseURL(null, styled, "text/html", "UTF-8", null)
-                                },
                             )
+                            }
                         } else {
                             val bodyText = msg.text?.ifBlank { null } ?: msg.intro?.ifBlank { null } ?: "(No content)"
                             Box(
@@ -391,6 +406,20 @@ private fun buildStyledHtml(htmlContent: String, isDark: Boolean): String {
         img { max-width: 100% !important; height: auto !important; border-radius: 8px; }
         table { max-width: 100% !important; width: 100% !important; background-color: transparent !important; border-collapse: collapse; }
     </style></head><body>$cleanHtml</body></html>"""
+}
+
+private fun safeHttpsUri(raw: String): Uri? {
+    val uri = Uri.parse(raw.trim()) ?: return null
+    if (!uri.scheme.equals("https", ignoreCase = true)) return null
+    if (uri.host.isNullOrBlank()) return null
+    return uri
+}
+
+private fun openHttpsExternally(context: Context, uri: Uri?) {
+    val safe = uri?.takeIf { it.scheme.equals("https", ignoreCase = true) && !it.host.isNullOrBlank() } ?: return
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, safe))
+    } catch (_: Exception) {}
 }
 
 private fun formatDate(dateString: String): String {

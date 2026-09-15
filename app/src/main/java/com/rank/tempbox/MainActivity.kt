@@ -87,15 +87,7 @@ class MainActivity : ComponentActivity() {
                 getSharedPreferences(PrefKeys.PREFS_NAME, Context.MODE_PRIVATE)
             }
             var themeMode by remember {
-                mutableStateOf(
-                    if (prefs.contains("theme_mode")) {
-                        prefs.getString("theme_mode", "dark")!!
-                    } else if (prefs.contains("dark_mode")) {
-                        if (prefs.getBoolean("dark_mode", true)) "dark" else "light"
-                    } else {
-                        "dark"
-                    }
-                )
+                mutableStateOf(themeModeFrom(prefs))
             }
             val systemDark = isSystemInDarkTheme()
             val isDark = when (themeMode) {
@@ -171,7 +163,8 @@ class MainActivity : ComponentActivity() {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(colors.phoneBg),
+                            .background(colors.phoneBg)
+                            .navigationBarsPadding(),
                     ) {
                         if (currentRoute in headerRoutes) {
                             val pageTitle = when (currentRoute) {
@@ -257,7 +250,6 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onRefreshInbox = {
                                             viewModel.refreshInbox()
-                                            interstitialAds.onUserAction()
                                         },
                                         onWatchAdForGeneration = { showRewardedForExtraAddress() },
                                     )
@@ -269,7 +261,6 @@ class MainActivity : ComponentActivity() {
                                         isDark = isDark,
                                         onRefresh = {
                                             viewModel.refreshInbox()
-                                            interstitialAds.onUserAction()
                                         },
                                     )
                                 }
@@ -296,11 +287,20 @@ class MainActivity : ComponentActivity() {
                                         onThemeModeChanged = { newMode ->
                                             themeMode = newMode
                                             prefs.edit().putString("theme_mode", newMode).apply()
+                                            applyNightMode(newMode)
                                         },
                                         onBack = { navController.popBackStack() },
                                         onFullReset = {
                                             prefs.edit().clear().apply()
-                                            android.os.Process.killProcess(android.os.Process.myPid())
+                                            Integrity.clear()
+                                            (application as TempBoxApplication).discardMainViewModel()
+                                            startActivity(
+                                                android.content.Intent(this@MainActivity, OnboardingActivity::class.java).apply {
+                                                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                                },
+                                            )
+                                            finish()
                                         },
                                         onResetOnboarding = {
                                             prefs.edit().putBoolean("onboarding_complete", false).apply()
@@ -337,17 +337,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Home indicator
-                        Box(
-                            Modifier.fillMaxWidth().padding(bottom = 6.dp, top = 4.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Box(
-                                Modifier.width(120.dp).height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(colors.homeIndicator),
-                            )
-                        }
                     }
 
                     // Snackbar host overlay
@@ -368,6 +357,17 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        viewModel.setUiVisible(true)
+    }
+
+    override fun onStop() {
+        viewModel.setUiVisible(false)
+        super.onStop()
+    }
+
     private fun showRewardedForExtraAddress() {
         val shown = rewardedAds.show(
             onRewarded = {

@@ -59,6 +59,7 @@ fun SettingsScreen(
     var refreshInterval by remember { mutableIntStateOf(prefs.getInt("auto_refresh_interval", 15)) }
     var autoRefresh by remember { mutableStateOf(prefs.getBoolean("auto_refresh_enabled", true)) }
     val expiryInfo by viewModel.expiryInfo.observeAsState()
+    var confirmReset by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.updateExpiryInfo()
@@ -84,16 +85,9 @@ fun SettingsScreen(
     ) {
         SectionHeader("Appearance", colors.sub)
         SettingsCard(colors) {
-            SettingsToggleRow(
-                icon = if (isDark) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                label = "Dark mode",
-                sublabel = if (isDark) "Using dark theme" else "Using light theme",
-                checked = isDark,
-                colors = colors,
-                onCheckedChange = { onThemeModeChanged(if (it) "dark" else "light") },
-            )
-            SettingsDivider(colors)
-            ThemeModeRow(themeMode, colors, onThemeModeChanged)
+            ThemeModeRow(themeMode, colors) { newMode ->
+                onThemeModeChanged(newMode)
+            }
         }
 
         SectionHeader("Your address", colors.sub)
@@ -185,7 +179,7 @@ fun SettingsScreen(
                 label = "Reset all data",
                 sublabel = "Delete address and messages",
                 colors = colors,
-                onClick = onFullReset,
+                onClick = { confirmReset = true },
                 danger = true,
             )
         }
@@ -231,11 +225,28 @@ fun SettingsScreen(
         SettingsCard(colors) {
             SettingsInfoRow(Icons.Rounded.Info, "Version", versionLabel, colors)
             SettingsDivider(colors)
-            SettingsInfoRow(Icons.Rounded.Shield, "Privacy", "No personal data stored", colors)
+            SettingsInfoRow(Icons.Rounded.Shield, "Privacy", "Address stays on this device. Mail is hosted by mail.tm. Ads help keep the app free.", colors)
         }
 
         Spacer(Modifier.height(12.dp))
         StartIoBanner()
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text("Reset all data?") },
+            text = { Text("This deletes the saved address and local messages. Mail on mail.tm is not deleted from their servers.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmReset = false
+                    onFullReset()
+                }) { Text("Reset", color = ExpiryRed) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReset = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

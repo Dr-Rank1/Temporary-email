@@ -1,6 +1,6 @@
 package com.rank.tempbox.ui.screens
 
-import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Refresh
@@ -22,14 +21,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rank.tempbox.EmailMessage
+import com.rank.tempbox.Integrity
 import com.rank.tempbox.MainViewModel
-import com.rank.tempbox.PrefKeys
 import com.rank.tempbox.senderLabel
 import com.rank.tempbox.ui.theme.AvatarColors
 import com.rank.tempbox.ui.theme.TempBoxTheme
@@ -41,12 +39,15 @@ fun InboxScreen(
     onRefresh: () -> Unit = { viewModel.refreshInbox() },
 ) {
     val colors = TempBoxTheme.colors
-    val context = LocalContext.current
     val messages by viewModel.messages.observeAsState(initial = emptyList())
     val emailAddress by viewModel.emailAddress.observeAsState(initial = "")
     val isLoading by viewModel.isLoading.observeAsState(false)
     var selectedMessageId by remember { mutableStateOf<String?>(null) }
     val pendingMessageId by viewModel.pendingOpenMessageId.observeAsState()
+
+    BackHandler(enabled = selectedMessageId != null) {
+        selectedMessageId = null
+    }
 
     LaunchedEffect(pendingMessageId) {
         pendingMessageId?.let { id ->
@@ -58,9 +59,7 @@ fun InboxScreen(
     val selectedMessage = messages.find { it.id == selectedMessageId }
 
     if (selectedMessage != null) {
-        val prefs = context.getSharedPreferences(PrefKeys.PREFS_NAME, Context.MODE_PRIVATE)
-        val slot = prefs.getInt("active_inbox_slot", 1)
-        val token = prefs.getString(PrefKeys.token(slot), null) ?: prefs.getString("auth_token", null) ?: ""
+        val token = Integrity.token(1).orEmpty()
         MessageDetailScreen(
             messageId = selectedMessage.id,
             token = token,

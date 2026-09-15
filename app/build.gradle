@@ -48,7 +48,6 @@ android {
     buildFeatures {
         buildConfig true
         compose true
-        viewBinding true
     }
 
     compileOptions {
@@ -84,12 +83,6 @@ dependencies {
     // Material Design 3 (views, for bottom sheets / dialogs)
     implementation 'com.google.android.material:material:1.14.0'
 
-    // Legacy (needed by existing XML layouts' view binding)
-    implementation 'androidx.constraintlayout:constraintlayout:2.2.2'
-    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.2.0'
-    implementation 'androidx.recyclerview:recyclerview:1.4.0'
-    implementation 'androidx.viewpager2:viewpager2:1.1.0'
-
     // Retrofit + Gson + OkHttp
     implementation 'com.squareup.retrofit2:retrofit:3.0.0'
     implementation 'com.squareup.retrofit2:converter-gson:3.0.0'
@@ -121,4 +114,6 @@ dependencies {
     // Debug tooling
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+
+    testImplementation 'junit:junit:4.13.2'
 }

@@ -23,15 +23,7 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             val prefs = remember { getSharedPreferences(PrefKeys.PREFS_NAME, MODE_PRIVATE) }
             var themeMode by remember {
-                mutableStateOf(
-                    if (prefs.contains("theme_mode")) {
-                        prefs.getString("theme_mode", "system")!!
-                    } else if (prefs.contains("dark_mode")) {
-                        if (prefs.getBoolean("dark_mode", true)) "dark" else "light"
-                    } else {
-                        "system"
-                    }
-                )
+                mutableStateOf(themeModeFrom(prefs))
             }
             val systemDark = isSystemInDarkTheme()
             val isDark = when (themeMode) {
@@ -48,13 +40,17 @@ class SettingsActivity : ComponentActivity() {
                     onThemeModeChanged = { newMode ->
                         themeMode = newMode
                         prefs.edit().putString("theme_mode", newMode).apply()
+                        applyNightMode(newMode)
                     },
                     onBack = { finish() },
                     onFullReset = {
                         getSharedPreferences(PrefKeys.PREFS_NAME, MODE_PRIVATE).edit().clear().apply()
+                        Integrity.clear()
+                        (application as TempBoxApplication).discardMainViewModel()
                         startActivity(Intent(this, OnboardingActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         })
+                        finish()
                     },
                     onResetOnboarding = {
                         prefs.edit().putBoolean("onboarding_complete", false).apply()

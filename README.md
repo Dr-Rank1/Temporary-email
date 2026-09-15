@@ -8,15 +8,15 @@ TempBox gives you throwaway email addresses in one tap. Use them for app sign-up
 
 ## Why TempBox?
 
-Most disposable-email apps feel clunky or buried in ads. TempBox is built to be fast: generate an address, copy it, and watch messages arrive in real time. No account, no phone number, no personal data.
+Most disposable-email apps feel clunky or buried in ads. TempBox is built to be fast: generate an address, copy it, and watch messages arrive while the app is open. No account and no phone number.
 
 | | |
 |---|---|
 | **Instant setup** | Working inbox in one tap |
 | **Private by design** | No registration or identity required |
-| **Auto-refresh** | New mail appears within seconds |
+| **Auto-refresh** | New mail appears while the app is open |
 | **Smart expiry** | 7-day lifespan with automatic renewal |
-| **Up to 3 inboxes** | Run multiple addresses at once |
+| **Daily limit** | A few free addresses per day; watch an ad for one more |
 
 ---
 
@@ -25,10 +25,8 @@ Most disposable-email apps feel clunky or buried in ads. TempBox is built to be 
 ### Core
 
 - **One-tap address generation** — create a working `@mail.tm` inbox instantly
-- **Live inbox polling** — messages refresh automatically every few seconds
-- **Multiple inboxes** — manage up to 3 disposable addresses simultaneously
-- **Custom prefix** — personalize the local part of your generated address
-- **7-day expiry** — addresses self-destruct; renew before they expire
+- **Live inbox polling** — messages refresh automatically while the app is open
+- **7-day expiry** — addresses last 7 days on mail.tm; the app renews when they expire
 - **Message detail view** — read full HTML and plain-text email bodies
 
 ### Convenience
@@ -36,7 +34,7 @@ Most disposable-email apps feel clunky or buried in ads. TempBox is built to be 
 - **OTP detection** — verification codes are surfaced and copyable in one tap
 - **Autofill service** — suggest your temp address inside other apps (Android 8+)
 - **Home screen widget** — see your active inbox and latest mail at a glance
-- **Push notifications** — get alerted when new mail arrives (Android 13+ permission prompt)
+- **Push notifications** — OTP alerts while the app is running (Android 13+ permission prompt)
 - **Quick copy** — copy your full address to the clipboard from anywhere in the app
 
 ### Appearance
@@ -129,10 +127,12 @@ app/src/main/java/com/rank/tempbox/
 
 ## Privacy
 
-- TempBox does not require or store personal information.
-- Email data lives only on the mail.tm service for the lifetime of the address.
-- Location permissions from ad SDK dependencies are explicitly stripped in the manifest.
-- Internet access is required solely for fetching mail and serving ads.
+- TempBox does not require an account or your real email address.
+- The generated address, password, and session token are stored only on the device (encrypted).
+- Message bodies live on [mail.tm](https://mail.tm) for the lifetime of the address (up to 7 days).
+- Ads are served by Start.io. The advertising ID permission is used by that SDK.
+- Location permissions from ad SDK dependencies are stripped in the manifest.
+- Internet access is required for mail and ads.
 
 ---
 

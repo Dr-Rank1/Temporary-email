@@ -14,7 +14,9 @@
 
     <application
         android:name=".TempBoxApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -48,12 +50,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".MessageDetailActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity"
             android:screenOrientation="portrait" />
 
         <activity

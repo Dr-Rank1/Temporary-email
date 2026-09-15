@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import java.security.SecureRandom
 import kotlin.coroutines.cancellation.CancellationException
 
 data class ExpiryInfo(
@@ -70,7 +71,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
-    private var previousMessageCount: Int = 0
+    private val knownMessageIds = mutableSetOf<String>()
+    private var uiVisible = false
+    private val secureRandom = SecureRandom()
 
     private val refreshInterval: Int
         get() = prefs.getInt("auto_refresh_interval", 15)
@@ -82,9 +85,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val pendingOpenMessageId: LiveData<String?> = _pendingOpenMessageId
 
     init {
+        Integrity.init(application)
         validateAndRepairPrefs()
-        migrateToSlotKeys()
         syncExpiryTimestamps()
+        loadKnownMessageIds()
 
         val activeNetwork = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
@@ -106,7 +110,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val remaining = createdAt + 7L * 24 * 60 * 60 * 1000 - System.currentTimeMillis()
                     if (createdAt > 0L && remaining <= 0) {
                         generateEmailForSlot(1)
-                    } else {
+                    } else if (uiVisible) {
                         startAutoRefresh()
                     }
                 }
@@ -118,10 +122,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         networkCallback = callback
         connectivityManager.registerNetworkCallback(networkRequest, callback)
 
-        val savedEmail = prefs.getString(PrefKeys.email(1), null)
-        val savedPassword = prefs.getString(PrefKeys.password(1), null)
-        authToken = prefs.getString(PrefKeys.token(1), null)
-            ?: prefs.getString("auth_token", null)
+        val savedEmail = Integrity.email(1)
+        val savedPassword = Integrity.password(1)
+        authToken = Integrity.token(1)
 
         if (savedEmail != null && savedPassword != null) {
             val createdAt = Integrity.getLong(PrefKeys.createdAt(1), 0L)
@@ -144,25 +147,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun validateAndRepairPrefs() {
-        val email = prefs.getString(PrefKeys.email(1), null)
-        val token = prefs.getString(PrefKeys.token(1), null)
-        val password = prefs.getString(PrefKeys.password(1), null)
+        val email = Integrity.email(1)
+        val token = Integrity.token(1)
         if (token != null && email.isNullOrBlank()) {
-            prefs.edit().remove(PrefKeys.token(1)).remove(PrefKeys.password(1)).apply()
+            Integrity.remove(PrefKeys.token(1))
+            Integrity.remove(PrefKeys.password(1))
             android.util.Log.w("TempBox", "Repaired pref: cleared token_1 because email_1 was blank")
-        }
-    }
-
-    private fun migrateToSlotKeys() {
-        if (prefs.getString(PrefKeys.email(1), null) == null) {
-            val legacy = prefs.getString("email_address", null) ?: return
-            val pw = prefs.getString("email_password", null) ?: ""
-            val tok = prefs.getString("auth_token", null) ?: ""
-            prefs.edit()
-                .putString(PrefKeys.email(1), legacy)
-                .putString(PrefKeys.password(1), pw)
-                .putString(PrefKeys.token(1), tok)
-                .apply()
         }
     }
 
@@ -181,26 +171,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun generateNewEmail(): Boolean {
-        val today = today()
-        val lastGenDate = prefs.getString("last_email_gen_date", null)
-        var genCount = if (today == lastGenDate) prefs.getInt("daily_email_generations", 0) else 0
-
-        if (genCount >= DAILY_GENERATION_LIMIT) {
+        if (generationsRemainingToday() <= 0) {
             _generationsRemaining.value = 0
             _error.postValue("Daily email generation limit reached. Watch an ad on the Home screen to unlock one more.")
             return false
         }
+        if (emailGenerationJob?.isActive == true) return false
 
-        genCount++
-        prefs.edit()
-            .putString("last_email_gen_date", today)
-            .putInt("daily_email_generations", genCount)
-            .apply()
-        _generationsRemaining.value = (DAILY_GENERATION_LIMIT - genCount).coerceAtLeast(0)
-
-        _messages.value = emptyList()
-        WidgetUpdater.updateFromMessages(getApplication(), emptyList())
-        generateEmailForSlot(1)
+        resetInboxSnapshot()
+        generateEmailForSlot(1, consumeGeneration = true)
         return true
     }
 
@@ -215,6 +194,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _generationsRemaining.value = generationsRemainingToday()
     }
 
+    private fun consumeOneGeneration() {
+        val today = today()
+        val lastGenDate = prefs.getString("last_email_gen_date", null)
+        val genCount = (if (today == lastGenDate) prefs.getInt("daily_email_generations", 0) else 0) + 1
+        prefs.edit()
+            .putString("last_email_gen_date", today)
+            .putInt("daily_email_generations", genCount)
+            .apply()
+        _generationsRemaining.value = (DAILY_GENERATION_LIMIT - genCount).coerceAtLeast(0)
+    }
+
     private fun today(): String =
         java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date())
 
@@ -227,9 +217,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         const val DAILY_GENERATION_LIMIT = 3
+        private const val KNOWN_IDS_KEY = "known_message_ids"
+        private const val SNAPSHOT_READY_KEY = "inbox_snapshot_ready"
     }
 
-    private fun generateEmailForSlot(slot: Int) {
+    private fun generateEmailForSlot(slot: Int, consumeGeneration: Boolean = false) {
         if (emailGenerationJob?.isActive == true) return
         autoRefreshJob?.cancel()
         emailGenerationJob = viewModelScope.launch {
@@ -289,15 +281,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     android.util.Log.d("TempBox", "Token received, saving credentials...")
 
                     val now = System.currentTimeMillis()
-                    prefs.edit()
-                        .putString(PrefKeys.email(slot), address)
-                        .putString(PrefKeys.password(slot), password)
-                        .putString(PrefKeys.token(slot), tokenResponse.token)
-                        .putString("email_address", address)
-                        .putString("email_password", password)
-                        .putString("auth_token", tokenResponse.token)
-                        .apply()
+                    Integrity.saveAccount(slot, address, password, tokenResponse.token)
                     setAccountCreatedAt(slot, now)
+                    if (consumeGeneration) consumeOneGeneration()
 
                     authToken = tokenResponse.token
                     _emailAddress.value = address
@@ -352,9 +338,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     RetrofitClient.unauthenticatedApi.getToken(TokenRequest(address, password))
                 }
                 authToken = tokenResponse.token
-                prefs.edit().putString(PrefKeys.token(slot), tokenResponse.token)
-                    .putString("auth_token", tokenResponse.token)
-                    .apply()
+                Integrity.saveToken(slot, tokenResponse.token)
                 startAutoRefresh()
             } catch (e: retrofit2.HttpException) {
                 if (e.code() == 401) {
@@ -427,12 +411,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             RetrofitClient.authenticatedApi.getMessages("Bearer $token", 1, 20)
         }
         val newMessages = messagesResponse.members.orEmpty().filter { it.id.isNotBlank() }
-        val oldCount = previousMessageCount
-        previousMessageCount = newMessages.size
-        _messages.value = newMessages
-
-        if (oldCount > 0 && newMessages.size > oldCount) {
-            val fresh = newMessages.take(newMessages.size - oldCount)
+        val snapshotReady = prefs.getBoolean(SNAPSHOT_READY_KEY, false)
+        if (snapshotReady) {
+            val fresh = newMessages.filter { it.id !in knownMessageIds }
             for (msg in fresh) {
                 val otp = OtpExtractor.extract(msg.intro.orEmpty())
                 if (otp != null) {
@@ -440,23 +421,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        knownMessageIds.clear()
+        knownMessageIds.addAll(newMessages.map { it.id })
+        persistKnownMessageIds(snapshotReady = true)
+        _messages.value = newMessages
         WidgetUpdater.updateFromMessages(getApplication(), newMessages)
+    }
+
+    private fun loadKnownMessageIds() {
+        knownMessageIds.clear()
+        prefs.getString(KNOWN_IDS_KEY, null)
+            ?.split('\u001e')
+            ?.filter { it.isNotBlank() }
+            ?.let { knownMessageIds.addAll(it) }
+    }
+
+    private fun persistKnownMessageIds(snapshotReady: Boolean) {
+        prefs.edit()
+            .putBoolean(SNAPSHOT_READY_KEY, snapshotReady)
+            .putString(KNOWN_IDS_KEY, knownMessageIds.joinToString("\u001e"))
+            .apply()
+    }
+
+    private fun resetInboxSnapshot() {
+        knownMessageIds.clear()
+        persistKnownMessageIds(snapshotReady = false)
+        prefs.edit().remove(KNOWN_IDS_KEY).apply()
+        _messages.value = emptyList()
+        WidgetUpdater.updateFromMessages(getApplication(), emptyList())
     }
 
     private suspend fun resolveAuthToken(slot: Int = 1): String? {
         authToken?.takeIf { it.isNotBlank() }?.let { return it }
 
-        prefs.getString(PrefKeys.token(slot), null)?.takeIf { it.isNotBlank() }?.let {
-            authToken = it
-            return it
-        }
-        prefs.getString("auth_token", null)?.takeIf { it.isNotBlank() }?.let {
+        Integrity.token(slot)?.let {
             authToken = it
             return it
         }
 
-        val email = prefs.getString(PrefKeys.email(slot), null)
-        val password = prefs.getString(PrefKeys.password(slot), null)
+        val email = Integrity.email(slot)
+        val password = Integrity.password(slot)
         if (email.isNullOrBlank() || password.isNullOrBlank()) return null
 
         return try {
@@ -464,16 +468,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 RetrofitClient.unauthenticatedApi.getToken(TokenRequest(email, password))
             }
             authToken = tokenResponse.token
-            prefs.edit()
-                .putString(PrefKeys.token(slot), tokenResponse.token)
-                .putString("auth_token", tokenResponse.token)
-                .apply()
+            Integrity.saveToken(slot, tokenResponse.token)
             tokenResponse.token
         } catch (e: retrofit2.HttpException) {
             android.util.Log.w("TempBox", "resolveAuthToken HTTP ${e.code()}")
             if (e.code() == 401) {
                 authToken = null
-                prefs.edit().remove(PrefKeys.token(slot)).remove("auth_token").apply()
+                Integrity.remove(PrefKeys.token(slot))
             }
             null
         } catch (e: Exception) {
@@ -483,8 +484,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteMessage(messageId: String) {
-        val token = authToken ?: return
+        val token = authToken ?: Integrity.token(1) ?: return
         _messages.value = _messages.value?.filter { it.id != messageId } ?: return
+        knownMessageIds.remove(messageId)
+        persistKnownMessageIds(snapshotReady = true)
         viewModelScope.launch {
             try {
                 RetrofitClient.authenticatedApi.deleteMessage("Bearer $token", messageId)
@@ -525,7 +528,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         startAutoRefresh()
     }
 
+    fun setUiVisible(visible: Boolean) {
+        if (uiVisible == visible) return
+        uiVisible = visible
+        if (visible) {
+            startAutoRefresh()
+        } else {
+            autoRefreshJob?.cancel()
+            autoRefreshJob = null
+            _countdown.postValue(0)
+        }
+    }
+
     private fun startAutoRefresh() {
+        if (!uiVisible) return
         autoRefreshJob?.cancel()
         autoRefreshJob = viewModelScope.launch {
             while (isActive) {
@@ -539,7 +555,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     for (i in interval downTo 1) {
                         if (!isActive) return@launch
                         if (!autoRefreshEnabled) break
-                        if (!isOnline.value!!) {
+                        if (_isOnline.value != true) {
                             _countdown.postValue(0)
                             break
                         }
@@ -559,7 +575,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             break
                         }
 
-                        while (_isOnline.value == false) {
+                        while (_isOnline.value != true) {
                             delay(1000)
                             if (!isActive) return@launch
                             if (!autoRefreshEnabled) break
@@ -577,7 +593,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun randomString(length: Int): String {
         val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-        return buildString { repeat(length) { append(chars.random()) } }
+        return buildString {
+            repeat(length) { append(chars[secureRandom.nextInt(chars.length)]) }
+        }
     }
 
     fun clearError() { _error.value = null }

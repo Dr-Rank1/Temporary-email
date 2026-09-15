@@ -25,7 +25,7 @@ class OnboardingActivity : ComponentActivity() {
         }
 
         setContent {
-            val themeMode = remember { prefs.getString("theme_mode", "dark")!! }
+            val themeMode = remember { themeModeFrom(prefs) }
             val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
             val isDark = when (themeMode) {
                 "light" -> false

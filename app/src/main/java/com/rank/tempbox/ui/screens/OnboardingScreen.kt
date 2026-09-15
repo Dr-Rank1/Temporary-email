@@ -42,13 +42,13 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         ),
         OnboardingSlide(
             icon = { Icon(Icons.Rounded.Shield, null, tint = colors.accent, modifier = Modifier.size(24.dp)) },
-            title = "Zero logs, zero tracking",
-            body = "Messages are never stored on a server. The inbox vanishes when you close the app.",
+            title = "Private on this device",
+            body = "The address and login stay on your phone. Mail is hosted by mail.tm for up to 7 days. Ads help keep the app free.",
         ),
         OnboardingSlide(
             icon = { Icon(Icons.Rounded.Schedule, null, tint = colors.accent, modifier = Modifier.size(24.dp)) },
-            title = "Auto-refreshes every 30s",
-            body = "New mail arrives without lifting a finger. One-time codes are detected and surfaced instantly.",
+            title = "Checks for mail while open",
+            body = "New mail arrives automatically while you use the app. One-time codes are detected and surfaced instantly.",
         ),
         OnboardingSlide(
             icon = { Icon(Icons.Rounded.Lock, null, tint = colors.accent, modifier = Modifier.size(24.dp)) },

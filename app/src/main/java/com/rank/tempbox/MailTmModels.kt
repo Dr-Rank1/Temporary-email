@@ -9,7 +9,7 @@ data class Domain(
 )
 
 data class DomainResponse(
-    @SerializedName("hydra:member") val members: List<Domain>
+    @SerializedName("hydra:member") val members: List<Domain> = emptyList(),
 )
 
 data class AccountRequest(
@@ -24,7 +24,7 @@ data class TokenRequest(
 
 data class TokenResponse(
     @SerializedName("token") val token: String,
-    @SerializedName("id") val id: String
+    @SerializedName("id") val id: String = "",
 )
 
 data class EmailFrom(

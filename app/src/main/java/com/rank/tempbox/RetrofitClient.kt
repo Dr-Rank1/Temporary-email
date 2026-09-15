@@ -32,21 +32,13 @@ object RetrofitClient {
         chain.proceed(request)
     }
 
-    private val retryInterceptor = Interceptor { chain ->
-        var request = chain.request()
-        var response = chain.proceed(request)
-        var tryCount = 0
-
-        while (!response.isSuccessful && response.code == 429 && tryCount < 2) {
-            tryCount++
+    private val retryAfterInterceptor = Interceptor { chain ->
+        val response = chain.proceed(chain.request())
+        if (response.code == 429) {
             val retryAfterSeconds = response.header("Retry-After")?.toIntOrNull() ?: 3
             _retryAfter.postValue(retryAfterSeconds)
-            Log.w(TAG, "Rate limited (429), retry #$tryCount — Retry-After: ${retryAfterSeconds}s")
-            response.close()
-            Thread.sleep(retryAfterSeconds * 1000L)
-            response = chain.proceed(request)
-        }
-        if (response.code != 429) {
+            Log.w(TAG, "Rate limited (429) — Retry-After: ${retryAfterSeconds}s")
+        } else {
             _retryAfter.postValue(0)
         }
         response
@@ -58,12 +50,11 @@ object RetrofitClient {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .addInterceptor(headerInterceptor)
-            .addInterceptor(retryInterceptor)
+            .addInterceptor(retryAfterInterceptor)
             .addInterceptor(loggingInterceptor)
             .build()
     }
 
-    // Separate clients allow per-client interceptors in future (e.g. auth, caching)
     val unauthenticatedClient: OkHttpClient by lazy { buildOkHttpClient() }
     val authenticatedClient: OkHttpClient by lazy { buildOkHttpClient() }
 

@@ -61,5 +61,5 @@ fun showOtpNotification(context: Context, otp: String) {
         .build()
 
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    manager.notify(System.currentTimeMillis().toInt(), notification)
+    manager.notify("otp", otp.hashCode(), notification)
 }

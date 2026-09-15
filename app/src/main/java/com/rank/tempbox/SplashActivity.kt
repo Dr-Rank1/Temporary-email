@@ -13,14 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.rank.tempbox.ui.components.AppLogo
 import com.rank.tempbox.ui.components.AppLogoSize
 import com.rank.tempbox.ui.theme.TempBoxTheme
-import com.startapp.sdk.adsbase.StartAppAd
 import kotlinx.coroutines.delay
 
 class SplashActivity : ComponentActivity() {
@@ -33,7 +30,7 @@ class SplashActivity : ComponentActivity() {
 
         setContent {
             val prefs = remember { getSharedPreferences(PrefKeys.PREFS_NAME, MODE_PRIVATE) }
-            val themeMode = remember { prefs.getString("theme_mode", "dark")!! }
+            val themeMode = remember { themeModeFrom(prefs) }
             val systemDark = isSystemInDarkTheme()
             val isDark = when (themeMode) {
                 "light" -> false
@@ -44,7 +41,6 @@ class SplashActivity : ComponentActivity() {
             TempBoxTheme(isDark = isDark) {
                 val colors = TempBoxTheme.colors
 
-                // Animation for logo pulse
                 val infiniteTransition = rememberInfiniteTransition(label = "pulse")
                 val scale by infiniteTransition.animateFloat(
                     initialValue = 0.95f,
@@ -56,15 +52,8 @@ class SplashActivity : ComponentActivity() {
                     label = "logo_scale"
                 )
 
-                var statusText by remember { mutableStateOf("Initializing secured environment...") }
-
                 LaunchedEffect(Unit) {
-                    delay(800)
-                    statusText = "Securing temporary inbox..."
-                    delay(800)
-                    statusText = "Loading preferences..."
                     delay(400)
-
                     val completed = prefs.getBoolean("onboarding_complete", false)
                     val intent = if (completed) {
                         Intent(this@SplashActivity, MainActivity::class.java)
@@ -92,28 +81,9 @@ class SplashActivity : ComponentActivity() {
                         ) {
                             AppLogo(size = AppLogoSize.Medium, showWordmark = true)
                         }
-
-                        Spacer(Modifier.height(48.dp))
-
-                        CircularProgressIndicator(
-                            color = colors.accent,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(28.dp)
-                        )
-
-                        Spacer(Modifier.height(16.dp))
-
-                        Text(
-                            text = statusText,
-                            color = colors.sub,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
                 }
             }
         }
-
-        StartAppAd.showSplash(this, savedInstanceState)
     }
 }
