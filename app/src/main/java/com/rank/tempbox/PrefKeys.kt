@@ -11,4 +11,5 @@ object PrefKeys {
     fun password(slot: Int) = "password_$slot"
     fun token(slot: Int) = "token_$slot"
     fun createdAt(slot: Int) = "account_created_at_$slot"
+    fun accountId(slot: Int) = "account_id_$slot"
 }

@@ -7,6 +7,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Headers
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -36,6 +37,25 @@ interface ApiService {
         @Header("Authorization") bearerToken: String,
         @Path("id") id: String
     ): MessageDetail
+
+    @Headers("Content-Type: application/merge-patch+json")
+    @PATCH("messages/{id}")
+    suspend fun patchMessage(
+        @Header("Authorization") bearerToken: String,
+        @Path("id") id: String,
+        @Body body: SeenPatch
+    ): JsonObject
+
+    @GET("me")
+    suspend fun getMe(
+        @Header("Authorization") bearerToken: String
+    ): MailAccount
+
+    @DELETE("accounts/{id}")
+    suspend fun deleteAccount(
+        @Header("Authorization") bearerToken: String,
+        @Path("id") id: String
+    ): Response<Void>
 
     @DELETE("messages/{id}")
     suspend fun deleteMessage(

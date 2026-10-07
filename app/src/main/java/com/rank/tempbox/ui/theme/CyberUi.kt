@@ -11,8 +11,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun accentButtonLabelColor(): Color {
     val accent = TempBoxTheme.colors.accent
-    return if (accent == LightPrimary) Color.White else CyberBlack
+    return if (accent == LightAccentTeal) Color.White else Color.White
 }
 
 fun Modifier.cyberCardBorder(accentAlpha: Float = 0.15f): Modifier =
-    this.border(1.dp, NeonGreen.copy(alpha = accentAlpha), RoundedCornerShape(2.dp))
+    this.border(1.dp, AccentTeal.copy(alpha = accentAlpha), RoundedCornerShape(2.dp))

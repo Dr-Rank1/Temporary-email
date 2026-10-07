@@ -56,10 +56,11 @@ import androidx.navigation.compose.rememberNavController
 import com.rank.tempbox.R
 import com.rank.tempbox.ads.InterstitialAdManager
 import com.rank.tempbox.ads.RewardedAdManager
-import com.rank.tempbox.ads.StartIoBanner
+import com.rank.tempbox.ads.UnityBanner
 import com.rank.tempbox.ui.components.TmpMailHeader
 import com.rank.tempbox.ui.screens.HomeScreen
 import com.rank.tempbox.ui.screens.InboxScreen
+import com.rank.tempbox.ui.screens.PrivacyPolicyScreen
 import com.rank.tempbox.ui.screens.SettingsScreen
 import com.rank.tempbox.ui.theme.*
 import kotlinx.coroutines.delay
@@ -72,6 +73,8 @@ class MainActivity : ComponentActivity() {
 
     private val interstitialAds by lazy { InterstitialAdManager(this) }
     private val rewardedAds by lazy { RewardedAdManager(this) }
+
+    private var lastBackgroundTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -226,7 +229,7 @@ class MainActivity : ComponentActivity() {
                                         refreshCountdown = countdown,
                                         refreshProgress = refreshProgress,
                                         unreadCount = messages.count { !it.seen },
-                                        generationsRemaining = generationsRemaining,
+
                                         onRefreshEmail = {
                                             if (viewModel.generateNewEmail()) {
                                                 interstitialAds.onUserAction()
@@ -251,7 +254,7 @@ class MainActivity : ComponentActivity() {
                                         onRefreshInbox = {
                                             viewModel.refreshInbox()
                                         },
-                                        onWatchAdForGeneration = { showRewardedForExtraAddress() },
+
                                     )
                                 }
 
@@ -259,7 +262,7 @@ class MainActivity : ComponentActivity() {
                                     InboxScreen(
                                         viewModel = viewModel,
                                         isDark = isDark,
-                                        onRefresh = {
+                                        onMessageOpen = { interstitialAds.onUserAction() }, onRefresh = {
                                             viewModel.refreshInbox()
                                         },
                                     )
@@ -291,16 +294,18 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onBack = { navController.popBackStack() },
                                         onFullReset = {
-                                            prefs.edit().clear().apply()
-                                            Integrity.clear()
-                                            (application as TempBoxApplication).discardMainViewModel()
-                                            startActivity(
-                                                android.content.Intent(this@MainActivity, OnboardingActivity::class.java).apply {
-                                                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                                                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                                },
-                                            )
-                                            finish()
+                                            viewModel.resetApp {
+                                                prefs.edit().clear().apply()
+                                                Integrity.clear()
+                                                (application as TempBoxApplication).discardMainViewModel()
+                                                startActivity(
+                                                    android.content.Intent(this@MainActivity, OnboardingActivity::class.java).apply {
+                                                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                                            android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                                    },
+                                                )
+                                                finish()
+                                            }
                                         },
                                         onResetOnboarding = {
                                             prefs.edit().putBoolean("onboarding_complete", false).apply()
@@ -312,6 +317,27 @@ class MainActivity : ComponentActivity() {
                                             )
                                             finish()
                                         },
+                                        onOpenPrivacy = { navController.navigate("privacy") },
+                                    )
+                                }
+
+                                composable(
+                                    route = "privacy",
+                                    enterTransition = {
+                                        slideIntoContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Up,
+                                            animationSpec = tween(350, easing = EaseOutCubic)
+                                        ) + fadeIn(animationSpec = tween(250))
+                                    },
+                                    exitTransition = {
+                                        slideOutOfContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Down,
+                                            animationSpec = tween(350, easing = EaseInCubic)
+                                        ) + fadeOut(animationSpec = tween(250))
+                                    }
+                                ) {
+                                    PrivacyPolicyScreen(
+                                        onBack = { navController.popBackStack() },
                                     )
                                 }
                             }
@@ -319,7 +345,7 @@ class MainActivity : ComponentActivity() {
 
                         // Bottom navigation bar
                         if (showBottomBar) {
-                            StartIoBanner()
+                            UnityBanner()
                             BottomNav(
                                 currentRoute = currentRoute ?: "home",
                                 accent = colors.accent,
@@ -361,10 +387,14 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         viewModel.setUiVisible(true)
+        if (System.currentTimeMillis() - lastBackgroundTime > 30_000) {
+            interstitialAds.showAppOpenAd()
+        }
     }
 
     override fun onStop() {
         viewModel.setUiVisible(false)
+        lastBackgroundTime = System.currentTimeMillis()
         super.onStop()
     }
 

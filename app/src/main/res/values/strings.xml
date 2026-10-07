@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Temporary email</string>
+    <string name="privacy_policy_url">https://github.com/Dr-Rank1/Temporary-email/blob/main/docs/privacy.html</string>
 
     <!-- D1: Accessibility -->
     <string name="inbox_slot_1">Inbox slot 1</string>

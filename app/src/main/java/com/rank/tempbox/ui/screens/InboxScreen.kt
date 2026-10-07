@@ -6,7 +6,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inbox
@@ -37,6 +37,7 @@ fun InboxScreen(
     viewModel: MainViewModel,
     isDark: Boolean,
     onRefresh: () -> Unit = { viewModel.refreshInbox() },
+    onMessageOpen: () -> Unit = {},
 ) {
     val colors = TempBoxTheme.colors
     val messages by viewModel.messages.observeAsState(initial = emptyList())
@@ -54,6 +55,10 @@ fun InboxScreen(
             selectedMessageId = id
             viewModel.clearPendingOpenMessage()
         }
+    }
+
+    LaunchedEffect(selectedMessageId) {
+        selectedMessageId?.let { viewModel.markMessageSeen(it) }
     }
 
     val selectedMessage = messages.find { it.id == selectedMessageId }
@@ -146,11 +151,16 @@ fun InboxScreen(
                 }
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
-                    items(messages, key = { it.id }) { msg ->
+                    itemsIndexed(messages, key = { _, it -> it.id }) { index, msg ->
+                        if (index == 2) {
+                            Box(Modifier.padding(vertical = 8.dp)) {
+                                com.rank.tempbox.ads.UnityBanner()
+                            }
+                        }
                         EmailListItem(
                             message = msg,
                             colors = colors,
-                            onClick = { selectedMessageId = msg.id },
+                            onClick = { selectedMessageId = msg.id; onMessageOpen() },
                             onDelete = { viewModel.deleteMessage(msg.id) },
                         )
                     }

@@ -81,16 +81,25 @@ object Integrity {
     fun token(slot: Int): String? =
         getString(PrefKeys.token(slot), null)?.takeIf { it.isNotBlank() }
 
-    fun saveAccount(slot: Int, email: String, password: String, token: String) {
+    fun accountId(slot: Int): String? =
+        getString(PrefKeys.accountId(slot), null)?.takeIf { it.isNotBlank() }
+
+    fun saveAccount(slot: Int, email: String, password: String, token: String, accountId: String = "") {
         p().edit()
             .putString(PrefKeys.email(slot), email)
             .putString(PrefKeys.password(slot), password)
             .putString(PrefKeys.token(slot), token)
             .apply()
+        if (accountId.isNotBlank()) {
+            putString(PrefKeys.accountId(slot), accountId)
+        }
     }
 
-    fun saveToken(slot: Int, token: String) {
+    fun saveToken(slot: Int, token: String, accountId: String = "") {
         putString(PrefKeys.token(slot), token)
+        if (accountId.isNotBlank()) {
+            putString(PrefKeys.accountId(slot), accountId)
+        }
     }
 
     fun clearAccount(slot: Int) {
@@ -99,6 +108,7 @@ object Integrity {
             .remove(PrefKeys.password(slot))
             .remove(PrefKeys.token(slot))
             .remove(PrefKeys.createdAt(slot))
+            .remove(PrefKeys.accountId(slot))
             .apply()
     }
 

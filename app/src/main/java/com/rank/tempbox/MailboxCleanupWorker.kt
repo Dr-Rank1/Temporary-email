@@ -19,6 +19,7 @@ class MailboxCleanupWorker(
         val remaining = createdAt + 7L * 24 * 60 * 60 * 1000 - System.currentTimeMillis()
         if (remaining <= 0) {
             android.util.Log.w("TempBox-Worker", "Cleaning up expired slot $slot")
+            MailTmAccounts.deleteCurrent(slot)
             Integrity.clearAccount(slot)
             applicationContext.getSharedPreferences(PrefKeys.PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()

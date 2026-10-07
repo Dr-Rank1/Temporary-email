@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.core.view.WindowCompat
+import com.rank.tempbox.ui.screens.PrivacyPolicyScreen
 import com.rank.tempbox.ui.screens.SettingsScreen
 import com.rank.tempbox.ui.theme.TempBoxTheme
 
@@ -33,6 +34,10 @@ class SettingsActivity : ComponentActivity() {
             }
 
             TempBoxTheme(isDark = isDark) {
+                var showPrivacy by remember { mutableStateOf(false) }
+                if (showPrivacy) {
+                    PrivacyPolicyScreen(onBack = { showPrivacy = false })
+                } else {
                 SettingsScreen(
                     viewModel = viewModel,
                     isDark = isDark,
@@ -44,13 +49,15 @@ class SettingsActivity : ComponentActivity() {
                     },
                     onBack = { finish() },
                     onFullReset = {
-                        getSharedPreferences(PrefKeys.PREFS_NAME, MODE_PRIVATE).edit().clear().apply()
-                        Integrity.clear()
-                        (application as TempBoxApplication).discardMainViewModel()
-                        startActivity(Intent(this, OnboardingActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        })
-                        finish()
+                        viewModel.resetApp {
+                            getSharedPreferences(PrefKeys.PREFS_NAME, MODE_PRIVATE).edit().clear().apply()
+                            Integrity.clear()
+                            (application as TempBoxApplication).discardMainViewModel()
+                            startActivity(Intent(this, OnboardingActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            })
+                            finish()
+                        }
                     },
                     onResetOnboarding = {
                         prefs.edit().putBoolean("onboarding_complete", false).apply()
@@ -59,7 +66,9 @@ class SettingsActivity : ComponentActivity() {
                         })
                         finish()
                     },
+                    onOpenPrivacy = { showPrivacy = true },
                 )
+                }
             }
         }
     }

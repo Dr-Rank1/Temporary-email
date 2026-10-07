@@ -225,6 +225,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (emailGenerationJob?.isActive == true) return
         autoRefreshJob?.cancel()
         emailGenerationJob = viewModelScope.launch {
+            MailTmAccounts.deleteCurrent(slot)
             _messages.value = emptyList()
             _isLoading.value = true
             var lastError: Exception? = null
@@ -281,7 +282,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     android.util.Log.d("TempBox", "Token received, saving credentials...")
 
                     val now = System.currentTimeMillis()
-                    Integrity.saveAccount(slot, address, password, tokenResponse.token)
+                    Integrity.saveAccount(slot, address, password, tokenResponse.token, tokenResponse.id)
                     setAccountCreatedAt(slot, now)
                     if (consumeGeneration) consumeOneGeneration()
 
@@ -338,7 +339,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     RetrofitClient.unauthenticatedApi.getToken(TokenRequest(address, password))
                 }
                 authToken = tokenResponse.token
-                Integrity.saveToken(slot, tokenResponse.token)
+                Integrity.saveToken(slot, tokenResponse.token, tokenResponse.id)
                 startAutoRefresh()
             } catch (e: retrofit2.HttpException) {
                 if (e.code() == 401) {
@@ -385,7 +386,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         authToken = null
                         val refreshed = resolveAuthToken()
                         if (refreshed != null) {
-                            fetchInboxMessages(refreshed)
+                            try {
+                                fetchInboxMessages(refreshed)
+                            } catch (e2: Exception) {
+                                android.util.Log.e("TempBox", "Refreshed fetch failed", e2)
+                            }
                         } else {
                             generateEmailForSlot(1)
                             _error.value = "Session expired. Generating a new address…"
@@ -468,7 +473,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 RetrofitClient.unauthenticatedApi.getToken(TokenRequest(email, password))
             }
             authToken = tokenResponse.token
-            Integrity.saveToken(slot, tokenResponse.token)
+            Integrity.saveToken(slot, tokenResponse.token, tokenResponse.id)
             tokenResponse.token
         } catch (e: retrofit2.HttpException) {
             android.util.Log.w("TempBox", "resolveAuthToken HTTP ${e.code()}")
@@ -488,10 +493,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _messages.value = _messages.value?.filter { it.id != messageId } ?: return
         knownMessageIds.remove(messageId)
         persistKnownMessageIds(snapshotReady = true)
+        WidgetUpdater.updateFromMessages(getApplication(), _messages.value.orEmpty())
         viewModelScope.launch {
             try {
                 RetrofitClient.authenticatedApi.deleteMessage("Bearer $token", messageId)
             } catch (_: Exception) {}
+        }
+    }
+
+    fun markMessageSeen(messageId: String) {
+        val current = _messages.value ?: return
+        val target = current.find { it.id == messageId } ?: return
+        if (!target.seen) {
+            val updated = current.map { if (it.id == messageId) it.copy(seen = true) else it }
+            _messages.value = updated
+            WidgetUpdater.updateFromMessages(getApplication(), updated)
+        }
+        val token = authToken ?: Integrity.token(1) ?: return
+        viewModelScope.launch {
+            try {
+                RetrofitClient.authenticatedApi.patchMessage("Bearer $token", messageId, SeenPatch(true))
+            } catch (e: Exception) {
+                android.util.Log.w("TempBox", "markMessageSeen failed", e)
+            }
+        }
+    }
+
+    fun resetApp(onDone: () -> Unit) {
+        viewModelScope.launch {
+            MailTmAccounts.deleteCurrent(1)
+            onDone()
         }
     }
 

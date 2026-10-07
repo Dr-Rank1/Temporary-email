@@ -26,10 +26,12 @@ object RetrofitClient {
     }
 
     private val headerInterceptor = Interceptor { chain ->
-        val request = chain.request().newBuilder()
-            .addHeader("Content-Type", "application/json")
-            .build()
-        chain.proceed(request)
+        val original = chain.request()
+        val builder = original.newBuilder()
+        if (original.header("Content-Type") == null) {
+            builder.addHeader("Content-Type", "application/json")
+        }
+        chain.proceed(builder.build())
     }
 
     private val retryAfterInterceptor = Interceptor { chain ->

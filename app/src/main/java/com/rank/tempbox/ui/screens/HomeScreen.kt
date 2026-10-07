@@ -13,24 +13,22 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Videocam
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rank.tempbox.ui.theme.TempBoxColors
 import com.rank.tempbox.ui.theme.TempBoxTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,12 +41,10 @@ fun HomeScreen(
     refreshCountdown: Int = 0,
     refreshProgress: Float = 0f,
     unreadCount: Int = 0,
-    generationsRemaining: Int = 3,
     onRefreshEmail: () -> Unit,
     onCopyEmail: (String) -> Unit,
     onNavigateToInbox: () -> Unit,
     onRefreshInbox: () -> Unit,
-    onWatchAdForGeneration: () -> Unit = {},
 ) {
     val colors = TempBoxTheme.colors
     val scope = rememberCoroutineScope()
@@ -56,10 +52,9 @@ fun HomeScreen(
     var masked by remember { mutableStateOf(false) }
     var confirmNewAddress by remember { mutableStateOf(false) }
     val hasEmail = emailAddress.isNotBlank()
-    val scrambled = useScrambleText(emailAddress, enabled = hasEmail)
 
     val displayEmail = when {
-        isLoading && !hasEmail -> "Generating address..."
+        isLoading && !hasEmail -> "Generating..."
         !hasEmail -> "Waiting for connection..."
         masked && emailAddress.contains("@") -> {
             val parts = emailAddress.split("@")
@@ -67,7 +62,7 @@ fun HomeScreen(
             val maskedLocal = if (local.length > 3) local.take(3) + "•".repeat(local.length - 3) else local
             "$maskedLocal@${parts[1]}"
         }
-        else -> scrambled
+        else -> emailAddress
     }
 
     fun copyAddress() {
@@ -85,50 +80,38 @@ fun HomeScreen(
             .fillMaxSize()
             .background(colors.phoneBg),
     ) {
-        if (isDark) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(colors.accent.copy(alpha = 0.06f), Color.Transparent),
-                            radius = 900f,
-                        ),
-                    ),
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 32.dp, bottom = 16.dp),
+                .padding(horizontal = 24.dp)
+                .padding(top = 40.dp, bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Status row
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LiveDot(colors.accent)
-                    Text("Active inbox", fontSize = 12.sp, color = colors.sub, fontWeight = FontWeight.Medium)
-                }
-                Text("Stored on this device", fontSize = 12.sp, color = colors.sub)
-            }
+            Spacer(Modifier.height(48.dp))
 
-            Spacer(Modifier.height(24.dp))
-
-            // Address card
+            // Main Glass Card
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.card)
-                    .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp)),
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(colors.card.copy(alpha = 0.8f))
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(32.dp))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
+                Text(
+                    "YOUR TEMPORARY EMAIL",
+                    fontSize = 11.sp,
+                    letterSpacing = 2.sp,
+                    color = colors.sub,
+                    fontWeight = FontWeight.SemiBold
+                )
+                
+                Spacer(Modifier.height(24.dp))
+                
+                // Address Display
+                Box(
                     Modifier
                         .fillMaxWidth()
                         .clickable(
@@ -137,203 +120,178 @@ fun HomeScreen(
                             enabled = hasEmail,
                             onClick = ::copyAddress,
                         )
-                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.outerBg.copy(alpha = 0.4f))
+                        .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 16.dp, vertical = 20.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "Your address",
-                        fontSize = 10.sp,
-                        letterSpacing = 2.sp,
-                        color = colors.sub,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             displayEmail,
-                            modifier = Modifier.weight(1f),
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (hasEmail) colors.accent else colors.sub,
-                            fontFamily = FontFamily.Monospace,
+                            color = if (hasEmail) colors.text else colors.sub,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
                         )
-                        if (hasEmail) BlinkingCursor(colors.accent)
-                    }
-                    if (copied) {
-                        Spacer(Modifier.height(6.dp))
-                        Text("Copied to clipboard", fontSize = 12.sp, color = colors.accent, fontWeight = FontWeight.Medium)
+                        
+                        if (copied) {
+                            Spacer(Modifier.height(12.dp))
+                            Text("COPIED TO CLIPBOARD", fontSize = 10.sp, letterSpacing = 1.sp, color = colors.accent, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 
-                // Auto-refresh bar
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("AUTO-REFRESH", fontSize = 10.sp, letterSpacing = 1.sp, color = colors.sub)
-                        Text(
-                            if (isLoading) "checking…" else "${refreshCountdown.coerceAtLeast(0)}s",
-                            fontSize = 10.sp,
-                            color = colors.sub,
-                            fontFamily = FontFamily.Monospace,
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(colors.cardBorder),
-                    ) {
-                        Box(
-                            Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(refreshProgress.coerceIn(0f, 1f))
-                                .background(colors.accent),
-                        )
-                    }
-                }
+                Spacer(Modifier.height(24.dp))
 
-                Spacer(Modifier.height(8.dp))
-
-                HorizontalDivider(color = colors.rowBorder, thickness = 0.5.dp)
-
-                Row(Modifier.fillMaxWidth()) {
-                    CardAction(
+                // Modern Pill Actions
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    GlassPillAction(
                         icon = if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy,
                         label = if (copied) "Copied" else "Copy",
-                        primary = true,
                         enabled = hasEmail,
-                        accent = colors.accent,
-                        muted = colors.sub,
+                        colors = colors,
                         onClick = ::copyAddress,
-                        modifier = Modifier.weight(1f),
                     )
-                    VerticalDivider(modifier = Modifier.height(56.dp), color = colors.rowBorder, thickness = 0.5.dp)
-                    CardAction(
+                    GlassPillAction(
                         icon = if (masked) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                         label = if (masked) "Show" else "Hide",
-                        primary = false,
                         enabled = hasEmail,
-                        accent = colors.accent,
-                        muted = colors.sub,
+                        colors = colors,
                         onClick = { if (hasEmail) masked = !masked },
-                        modifier = Modifier.weight(1f),
                     )
-                    VerticalDivider(modifier = Modifier.height(56.dp), color = colors.rowBorder, thickness = 0.5.dp)
-                    CardAction(
+                    GlassPillAction(
                         icon = Icons.Rounded.Refresh,
-                        label = "New",
-                        primary = false,
+                        label = "Change",
                         enabled = !isLoading,
-                        accent = colors.accent,
-                        muted = colors.sub,
+                        colors = colors,
                         onClick = { if (hasEmail) confirmNewAddress = true },
-                        modifier = Modifier.weight(1f),
                     )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            if (generationsRemaining <= 0) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colors.tipBg)
-                        .border(1.dp, colors.tipBorder, RoundedCornerShape(12.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onWatchAdForGeneration,
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Rounded.Videocam, null, tint = colors.accent, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Free limit reached", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
-                        Text("Watch a short ad to generate another address", fontSize = 12.sp, color = colors.sub)
-                    }
-                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = colors.sub)
-                }
-                Spacer(Modifier.height(16.dp))
-            }
-
-            // Open inbox
+            Spacer(Modifier.height(24.dp))
+            
+            // Countdown Bar
             Row(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("AUTO-REFRESH IN", fontSize = 10.sp, letterSpacing = 1.sp, color = colors.sub)
+                Text(
+                    if (isLoading) "SYNCING" else "${refreshCountdown.coerceAtLeast(0)}s",
+                    fontSize = 12.sp,
+                    color = colors.accent,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Box(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
                     .background(colors.card)
-                    .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp))
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(refreshProgress.coerceIn(0f, 1f))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(colors.accent.copy(alpha = 0.5f), colors.accent)
+                            )
+                        )
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            // High-Tech Inbox Button
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(colors.card, colors.card.copy(alpha = 0.5f))
+                        )
+                    )
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(24.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onNavigateToInbox,
                     )
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 24.dp, vertical = 20.dp)
             ) {
-                Box(
-                    Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(colors.accent.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Outlined.Inbox, null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (unreadCount > 0) colors.accent 
+                                else colors.cardBorder
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.AllInbox, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("OPEN INBOX", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text, letterSpacing = 1.sp)
+                        Text(
+                            if (unreadCount > 0) "$unreadCount New Messages" else "No messages yet",
+                            fontSize = 13.sp,
+                            color = if (unreadCount > 0) colors.accent else colors.sub,
+                        )
+                    }
+                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = colors.sub)
                 }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Open inbox", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
-                    Text(
-                        if (unreadCount > 0) "$unreadCount unread message${if (unreadCount == 1) "" else "s"}"
-                        else "View incoming messages",
-                        fontSize = 12.sp,
-                        color = colors.sub,
-                    )
-                }
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = colors.sub)
             }
 
             Spacer(Modifier.weight(1f))
 
             Text(
-                "Addresses last 7 days on mail.tm. Login details stay on this device.",
-                fontSize = 12.sp,
-                color = colors.sub,
+                "Addresses expire after 7 days on mail.tm.",
+                fontSize = 11.sp,
+                color = colors.sub.copy(alpha = 0.6f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 24.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign = TextAlign.Center,
             )
         }
 
         if (confirmNewAddress) {
             AlertDialog(
                 onDismissRequest = { confirmNewAddress = false },
-                title = { Text("Generate a new address?") },
+                title = { Text("Change Address?") },
                 text = {
-                    Text("The current inbox will be replaced. Messages on this address will no longer be available in the app.")
+                    Text("The current email will be discarded. Messages on this address will no longer be available.")
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         confirmNewAddress = false
                         onRefreshEmail()
-                    }) { Text("Generate") }
+                    }) { Text("PROCEED", color = colors.accent) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { confirmNewAddress = false }) { Text("Cancel") }
+                    TextButton(onClick = { confirmNewAddress = false }) { Text("CANCEL", color = colors.sub) }
                 },
+                containerColor = colors.card,
+                titleContentColor = colors.text,
+                textContentColor = colors.sub
             )
         }
 
         if (isLoading && !hasEmail) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.accent, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
+            Box(Modifier.fillMaxSize().background(colors.outerBg.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = colors.accent, strokeWidth = 3.dp, modifier = Modifier.size(48.dp))
             }
         }
     }
@@ -342,96 +300,53 @@ fun HomeScreen(
 @Composable
 private fun LiveDot(accent: Color) {
     val alpha by rememberInfiniteTransition(label = "live").animateFloat(
-        initialValue = 0.35f,
+        initialValue = 0.3f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1700, easing = EaseInOut), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(1200, easing = EaseInOut), RepeatMode.Reverse),
         label = "liveAlpha",
     )
     Box(
         Modifier
-            .size(6.dp)
+            .size(8.dp)
             .clip(CircleShape)
             .background(accent.copy(alpha = alpha)),
     )
 }
 
 @Composable
-private fun BlinkingCursor(accent: Color) {
-    val visible by rememberInfiniteTransition(label = "cursor").animateFloat(
-        initialValue = 1f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(tween(550), RepeatMode.Reverse),
-        label = "blink",
-    )
-    if (visible > 0.5f) {
-        Box(Modifier.width(2.dp).height(20.dp).background(accent))
-    }
-}
-
-@Composable
-private fun CardAction(
+private fun GlassPillAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    primary: Boolean,
     enabled: Boolean,
-    accent: Color,
-    muted: Color,
+    colors: TempBoxColors,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier
+        Modifier
+            .clip(RoundedCornerShape(16.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 enabled = enabled,
                 onClick = onClick,
             )
-            .padding(vertical = 14.dp),
+            .background(colors.cardBorder.copy(alpha = 0.1f))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(
             icon,
             null,
-            tint = when {
-                !enabled -> muted.copy(alpha = 0.4f)
-                primary -> accent
-                else -> muted
-            },
-            modifier = Modifier.size(16.dp),
+            tint = if (enabled) colors.text else colors.sub.copy(alpha = 0.4f),
+            modifier = Modifier.size(20.dp),
         )
         Text(
-            label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = when {
-                !enabled -> muted.copy(alpha = 0.4f)
-                primary -> accent
-                else -> muted
-            },
+            label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            color = if (enabled) colors.text else colors.sub.copy(alpha = 0.4f),
         )
     }
-}
-
-@Composable
-private fun useScrambleText(target: String, enabled: Boolean = true): String {
-    var display by remember(target) { mutableStateOf(target) }
-    LaunchedEffect(target, enabled) {
-        if (!enabled || target.isBlank()) {
-            display = target
-            return@LaunchedEffect
-        }
-        val chars = "abcdefghijklmnopqrstuvwxyz0123456789@.-"
-        var step = 0
-        while (step < target.length) {
-            step++
-            display = target.mapIndexed { i, ch ->
-                if (i < step) ch else chars.random()
-            }.joinToString("")
-            delay(32)
-        }
-        display = target
-    }
-    return display
 }

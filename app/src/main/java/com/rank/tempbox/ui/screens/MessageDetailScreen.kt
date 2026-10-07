@@ -36,7 +36,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.rank.tempbox.MessageDetail
 import com.rank.tempbox.OtpExtractor
 import com.rank.tempbox.RetrofitClient
-import com.rank.tempbox.ads.StartIoBanner
+import com.rank.tempbox.ads.UnityBanner
 import com.rank.tempbox.ui.theme.*
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -301,7 +301,7 @@ fun MessageDetailScreen(
                                     fontSize = 13.sp,
                                     color = colors.text,
                                     lineHeight = 20.sp,
-                                    fontFamily = FontFamily.Monospace,
+                                    
                                 )
                             }
                         }
@@ -332,7 +332,7 @@ fun MessageDetailScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = colors.accent,
                                         letterSpacing = 4.sp,
-                                        fontFamily = FontFamily.Monospace,
+                                        
                                     )
                                 }
                                 Box(
@@ -383,14 +383,14 @@ fun MessageDetailScreen(
             }
         }
         }
-        StartIoBanner()
+        UnityBanner()
     }
 }
 
 private fun buildStyledHtml(htmlContent: String, isDark: Boolean): String {
-    val bgColor = if (isDark) "#080808" else "#F4F4F2"
-    val textColor = if (isDark) "#E6E6E4" else "#0D0D0D"
-    val linkColor = if (isDark) "#00FF88" else "#007A3E"
+    val bgColor = if (isDark) "#121212" else "#FEFCE8"
+    val textColor = if (isDark) "#F9FAFB" else "#422006"
+    val linkColor = if (isDark) "#2563EB" else "#EAB308"
 
     var cleanHtml = htmlContent
     cleanHtml = cleanHtml.replace(Regex("(?i)color\\s*:\\s*[^;'\"]+"), "")

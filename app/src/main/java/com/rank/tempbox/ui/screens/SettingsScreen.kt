@@ -32,9 +32,8 @@ import androidx.compose.ui.unit.sp
 import com.rank.tempbox.MainViewModel
 import com.rank.tempbox.PrefKeys
 import com.rank.tempbox.R
-import com.rank.tempbox.ads.AppWallManager
 import com.rank.tempbox.ads.RewardedAdManager
-import com.rank.tempbox.ads.StartIoBanner
+import com.rank.tempbox.ads.UnityBanner
 import com.rank.tempbox.ui.theme.*
 
 @Composable
@@ -46,14 +45,12 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onFullReset: () -> Unit,
     onResetOnboarding: () -> Unit,
+    onOpenPrivacy: () -> Unit,
 ) {
     val colors = TempBoxTheme.colors
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences(PrefKeys.PREFS_NAME, Context.MODE_PRIVATE) }
     val scrollState = rememberScrollState()
-
-    val rewardedAds = remember { (context as? Activity)?.let { RewardedAdManager(it) } }
-    val appWall = remember { (context as? Activity)?.let { AppWallManager(it) } }
 
     val emailAddress by viewModel.emailAddress.observeAsState("")
     var refreshInterval by remember { mutableIntStateOf(prefs.getInt("auto_refresh_interval", 15)) }
@@ -63,7 +60,6 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.updateExpiryInfo()
-        rewardedAds?.load()
     }
 
     val versionName = try {
@@ -93,7 +89,7 @@ fun SettingsScreen(
         SectionHeader("Your address", colors.sub)
         SettingsCard(colors) {
             Column(Modifier.padding(16.dp)) {
-                Text(emailAddress.ifEmpty { "Generating…" }, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text, fontFamily = FontFamily.Monospace)
+                Text(emailAddress.ifEmpty { "Generating…" }, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
                 Spacer(Modifier.height(8.dp))
                 val expiry = expiryInfo
                 Text(
@@ -184,59 +180,28 @@ fun SettingsScreen(
             )
         }
 
-        SectionHeader("Support", colors.sub)
-        SettingsCard(colors) {
-            SettingsActionRow(
-                icon = Icons.Rounded.Videocam,
-                label = "Watch ad for extra address",
-                sublabel = "Get one more new address today",
-                colors = colors,
-                onClick = {
-                    val manager = rewardedAds
-                    if (manager == null) {
-                        Toast.makeText(context, "Not available", Toast.LENGTH_SHORT).show()
-                        return@SettingsActionRow
-                    }
-                    val shown = manager.show(
-                        onRewarded = {
-                            viewModel.grantExtraGeneration()
-                            Toast.makeText(context, "Extra address unlocked!", Toast.LENGTH_SHORT).show()
-                        },
-                    )
-                    if (!shown) {
-                        Toast.makeText(context, "Video not ready, try again in a moment", Toast.LENGTH_SHORT).show()
-                    }
-                },
-            )
-            SettingsDivider(colors)
-            SettingsActionRow(
-                icon = Icons.Rounded.GridView,
-                label = "Browse offers",
-                sublabel = "Explore the app wall",
-                colors = colors,
-                onClick = {
-                    appWall?.show()
-                        ?: Toast.makeText(context, "Not available", Toast.LENGTH_SHORT).show()
-                },
-            )
-        }
-
         SectionHeader("About", colors.sub)
         SettingsCard(colors) {
             SettingsInfoRow(Icons.Rounded.Info, "Version", versionLabel, colors)
             SettingsDivider(colors)
-            SettingsInfoRow(Icons.Rounded.Shield, "Privacy", "Address stays on this device. Mail is hosted by mail.tm. Ads help keep the app free.", colors)
+            SettingsActionRow(
+                icon = Icons.Rounded.Shield,
+                label = "Privacy Policy",
+                sublabel = "How we handle your temporary inbox data",
+                colors = colors,
+                onClick = onOpenPrivacy,
+            )
         }
 
         Spacer(Modifier.height(12.dp))
-        StartIoBanner()
+        UnityBanner()
     }
 
     if (confirmReset) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset all data?") },
-            text = { Text("This deletes the saved address and local messages. Mail on mail.tm is not deleted from their servers.") },
+            text = { Text("This deletes the address on this device and asks mail.tm to delete the account.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmReset = false

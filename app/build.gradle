@@ -108,8 +108,8 @@ dependencies {
     // WebKit — dark mode force-dark (Module 4)
     implementation 'androidx.webkit:webkit:1.16.0'
 
-    // Start.io ads (5.3.x requires compileSdk 37)
-    implementation 'com.startapp:inapp-sdk:5.3.2'
+    // Unity Ads
+    implementation 'com.unity3d.ads:unity-ads:4.12.3'
 
     // Debug tooling
     debugImplementation 'androidx.compose.ui:ui-tooling'

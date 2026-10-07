@@ -35,3 +35,12 @@ data class EmailFrom(
 data class MessagesResponse(
     @SerializedName("hydra:member") val members: List<EmailMessage>? = null,
 )
+
+data class SeenPatch(
+    @SerializedName("seen") val seen: Boolean,
+)
+
+data class MailAccount(
+    @SerializedName("id") val id: String = "",
+    @SerializedName("address") val address: String = "",
+)

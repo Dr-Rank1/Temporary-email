@@ -12,7 +12,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.rank.tempbox.ads.StartIoAds
 import java.util.concurrent.TimeUnit
 
 fun themeModeFrom(prefs: SharedPreferences): String {
@@ -67,7 +66,7 @@ class TempBoxApplication : Application(), ViewModelStoreOwner {
         super.onCreate()
         val prefs = getSharedPreferences(PrefKeys.PREFS_NAME, Context.MODE_PRIVATE)
         applyNightMode(themeModeFrom(prefs))
-        StartIoAds.init(this)
+        com.rank.tempbox.ads.UnityAdsManager.initialize(this)
         createNotificationChannels(this)
         Integrity.init(this)
         scheduleMailboxCleanup()

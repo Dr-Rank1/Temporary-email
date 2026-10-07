@@ -133,6 +133,7 @@ app/src/main/java/com/rank/tempbox/
 - Ads are served by Start.io. The advertising ID permission is used by that SDK.
 - Location permissions from ad SDK dependencies are stripped in the manifest.
 - Internet access is required for mail and ads.
+- Full policy: [Privacy Policy](https://github.com/Dr-Rank1/Temporary-email/blob/main/docs/privacy.html) (also in Settings).
 
 ---
 

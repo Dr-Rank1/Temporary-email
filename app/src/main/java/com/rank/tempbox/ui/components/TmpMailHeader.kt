@@ -101,18 +101,6 @@ fun TmpMailHeader(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (!isSettingsActive) {
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(colors.accent.copy(alpha = 0.1f))
-                        .border(0.5.dp, colors.accent.copy(alpha = 0.22f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                ) {
-                    Text("BETA", fontSize = 9.sp, color = colors.accent, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                }
-            }
-
             Box(
                 Modifier
                     .size(36.dp)
