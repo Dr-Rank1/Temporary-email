@@ -17,8 +17,8 @@ android {
         applicationId "com.rank.tempbox"
         minSdk 24
         targetSdk 36
-        versionCode 18
-        versionName "2.0.2"
+        versionCode 19
+        versionName "2.0.3"
     }
 
     signingConfigs {
