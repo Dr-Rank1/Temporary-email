@@ -63,8 +63,10 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         Modifier
             .fillMaxSize()
             .background(colors.phoneBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(horizontal = 24.dp)
-            .padding(top = 32.dp, bottom = 32.dp),
+            .padding(top = 16.dp, bottom = 24.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             slides.forEachIndexed { index, _ ->

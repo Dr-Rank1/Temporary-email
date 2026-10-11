@@ -44,6 +44,7 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .background(colors.card)
                 .border(width = 0.5.dp, color = colors.cardBorder)
                 .padding(horizontal = 12.dp, vertical = 10.dp),

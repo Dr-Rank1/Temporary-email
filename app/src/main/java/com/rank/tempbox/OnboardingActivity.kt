@@ -3,6 +3,7 @@ package com.rank.tempbox
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.core.view.WindowCompat
@@ -12,7 +13,7 @@ import com.rank.tempbox.ui.theme.TempBoxTheme
 class OnboardingActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         val prefs = getSharedPreferences(PrefKeys.PREFS_NAME, MODE_PRIVATE)
